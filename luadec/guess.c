@@ -132,8 +132,11 @@ int luaU_guess_locals(Proto * f, int main)
 	}
 
 	// start code checking
+	Proto *f_bak = f;
 	for(pc = 0; pc < f->sizecode; ++pc)
 	{
+		f = f_bak; // TODO: Find and fix the error that makes this necessary
+
 		Instruction instr = f->code[pc];
 		OpCode o = GET_OPCODE(instr);
 		int a = GETARG_A(instr);
@@ -437,6 +440,10 @@ int luaU_guess_locals(Proto * f, int main)
 			if(dest > pc)
 			{
 				++block;
+				if(block < 1) // TODO: Find the problem that causes this error
+				{
+					block = 1;
+				}
 				blockend[block] = dest - 1;
 			}
 			if(GET_OPCODE(f->code[dest - 2]) == OP_JMP)
