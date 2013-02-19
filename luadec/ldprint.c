@@ -982,10 +982,10 @@ void SetList(Function * F, int a, int b, int c)
 	DecTable *tbl = (DecTable*)LastItem(&(F->tables));
 	if(tbl == NULL)
 	{
-		SET_ERROR(F, "No list found. Setlist fails.");
-		return;
+		tbl = NewTable(a, F, b, c);
+		AddToList(&(F->tables), (ListItem*)tbl);
 	}
-	if(tbl->reg != a)
+	else if(tbl->reg != a)
 	{
 		SET_ERROR(F, "Unhandled construct in list.");
 		return;
