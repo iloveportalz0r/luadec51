@@ -6,36 +6,40 @@
 
 typedef struct ListItem_ ListItem;
 
-struct ListItem_ {
-   ListItem *next;
+struct ListItem_
+{
+	ListItem *next;
 };
 
-typedef void (*ListItemFn) (ListItem *, void *);
-typedef int (*ListItemCmpFn) (ListItem *, const void *);
+typedef void (*ListItemFn)(ListItem *, void *);
+typedef int (*ListItemCmpFn)(ListItem *, const void *);
 
 typedef struct List_ List;
 
-struct List_ {
-   ListItem *head;
-   ListItem *tail;
-   int size;
+struct List_
+{
+	ListItem *head;
+	ListItem *tail;
+	int size;
 };
 
 typedef struct IntSet_ IntSet;
 
-struct IntSet_ {
-   int values[MAXARG_A + 1];
-   int ctr;
-   int mayRepeat;
+struct IntSet_
+{
+	int values[MAXARG_A + 1];
+	int ctr;
+	int mayRepeat;
 };
 
 typedef struct VarStack_ VarStack;
 
-struct VarStack_ {
-   char* dests[MAXARG_A + 1];
-   char* srcs[MAXARG_A + 1];
-   int regs[MAXARG_A + 1];
-   int ctr;
+struct VarStack_
+{
+	char* dests[MAXARG_A + 1];
+	char* srcs[MAXARG_A + 1];
+	int regs[MAXARG_A + 1];
+	int ctr;
 };
 
 void InitList(List* list);
