@@ -90,7 +90,7 @@ ListItem *FindInList(List * list, ListItemCmpFn cmp, const void *sample)
 int AddToSet(IntSet * set, int a)
 {
 	int i;
-	if(! set->mayRepeat)
+	if(!set->mayRepeat)
 	{
 		for(i = 0; i < set->ctr; ++i)
 		{

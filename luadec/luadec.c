@@ -27,7 +27,6 @@
 static int debugging = 0;			/* debug decompiler? */
 static int functions = 0;			/* dump functions separately? */
 static int dumping = 1;			/* dump bytecodes? */
-static int stripping = 0;			/* strip debug information? */
 static int disassemble = 0; /* disassemble? */
 int locals = 0;			/* strip debug information? */
 int localdeclare[255][255];
@@ -81,10 +80,12 @@ int Inject(Proto * fp, int functionnum)
 {
 	int f, i, c, n, at;
 	char number[255];
-	for(f = 0; f < 2; f++)
+	for(f = 0; f < 2; ++f)
 	{
-		for(i = 0; i < 255; i++)
+		for(i = 0; i < 255; ++i)
+		{
 			localdeclare[f][i] = -1;
+		}
 	}
 	f = 0;
 	i = 0;
@@ -95,47 +96,47 @@ int Inject(Proto * fp, int functionnum)
 	{
 		switch(LDS2[c])
 		{
-		case '-':
-			if(n != 0)
-			{
-				if(f == functionnum)
+			case '-':
+				if(n != 0)
 				{
-					localdeclare[at][i] = atoi(number);
+					if(f == functionnum)
+					{
+						localdeclare[at][i] = atoi(number);
+					}
 				}
-			}
-			at = 1;
-			n = 0;
-			break;
-		case ',':
-			if(n != 0)
-			{
-				if(f == functionnum)
+				at = 1;
+				n = 0;
+				break;
+			case ',':
+				if(n != 0)
 				{
-					localdeclare[at][i] = atoi(number);
+					if(f == functionnum)
+					{
+						localdeclare[at][i] = atoi(number);
+					}
 				}
-			}
-			i++;
-			n = 0;
-			at = 0;
-			break;
-		case ';':
-			if(n != 0)
-			{
-				if(f == functionnum)
+				i++;
+				n = 0;
+				at = 0;
+				break;
+			case ';':
+				if(n != 0)
 				{
-					localdeclare[at][i] = atoi(number);
+					if(f == functionnum)
+					{
+						localdeclare[at][i] = atoi(number);
+					}
 				}
-			}
-			i = 0;
-			n = 0;
-			at = 0;
-			f++;
-			break;
-		default:
-			number[n] = LDS2[c];
-			n++;
-			number[n] = '\0';
-			break;
+				i = 0;
+				n = 0;
+				at = 0;
+				++f;
+				break;
+			default:
+				number[n] = LDS2[c];
+				++n;
+				number[n] = '\0';
+				break;
 		}
 		c++;
 	}
@@ -149,7 +150,7 @@ int Inject(Proto * fp, int functionnum)
 
 
 	fp->sizelocvars = 0;
-	for(i = 0; i < 255; i++)
+	for(i = 0; i < 255; ++i)
 	{
 		if(localdeclare[0][i] != -1)
 		{
@@ -160,7 +161,7 @@ int Inject(Proto * fp, int functionnum)
 	if(fp->sizelocvars > 0)
 	{
 		fp->locvars = malloc(fp->sizelocvars * sizeof(LocVar));
-		for(i = 0; i < fp->sizelocvars; i++)
+		for(i = 0; i < fp->sizelocvars; ++i)
 		{
 			char names[10];
 			sprintf(names, "l_%d_%d", functionnum, i + fp->numparams);
@@ -171,10 +172,12 @@ int Inject(Proto * fp, int functionnum)
 	}
 
 
-	for(f = 0; f < 2; f++)
+	for(f = 0; f < 2; ++f)
 	{
-		for(i = 0; i < 255; i++)
+		for(i = 0; i < 255; ++i)
+		{
 			localdeclare[f][i] = -1;
+		}
 	}
 
 	return 1;
@@ -188,10 +191,12 @@ int LocalsLoad(const char* text)
 	{
 		return 0;
 	}
-	for(f = 0; f < 255; f++)
+	for(f = 0; f < 255; ++f)
 	{
-		for(i = 0; i < 255; i++)
+		for(i = 0; i < 255; ++i)
+		{
 			localdeclare[f][i] = -1;
+		}
 	}
 	f = 0;
 	i = 0;
@@ -201,30 +206,36 @@ int LocalsLoad(const char* text)
 	{
 		switch(text[c])
 		{
-		case ',':
-			if(n != 0)
+			case ',':
 			{
-				localdeclare[f][i] = atoi(number);
+				if(n != 0)
+				{
+					localdeclare[f][i] = atoi(number);
+				}
+				i++;
+				n = 0;
+				break;
 			}
-			i++;
-			n = 0;
-			break;
-		case ';':
-			if(n != 0)
+			case ';':
 			{
-				localdeclare[f][i] = atoi(number);
+				if(n != 0)
+				{
+					localdeclare[f][i] = atoi(number);
+				}
+				i = 0;
+				n = 0;
+				++f;
+				break;
 			}
-			i = 0;
-			n = 0;
-			f++;
-			break;
-		default:
-			number[n] = text[c];
-			n++;
-			number[n] = '\0';
-			break;
+			default:
+			{
+				number[n] = text[c];
+				++n;
+				number[n] = '\0';
+				break;
+			}
 		}
-		c++;
+		++c;
 	}
 	if(n != 0)
 	{
@@ -237,25 +248,36 @@ int LocalsLoad(const char* text)
 static int doargs(int argc, char* argv[])
 {
 	int i;
-	if(argv[0] != NULL && *argv[0] != 0) progname = argv[0];
-	for(i = 1; i < argc; i++)
+	if(argv[0] != NULL && *argv[0] != 0)
+	{
+		progname = argv[0];
+	}
+	for(i = 1; i < argc; ++i)
 	{
 		if(*argv[i] != '-')			/* end of options; keep it */
+		{
 			break;
+		}
 		else if(IS("--"))			/* end of options; skip it */
 		{
 			++i;
 			break;
 		}
 		else if(IS("-"))			/* end of options; use stdin */
+		{
 			return i;
+		}
 		else if(IS("-dis"))			/* list */
+		{
 			disassemble = 1;
+		}
 		else if(IS("-d"))			/* list */
+		{
 			debugging = 1;
+		}
 		else if(IS("-f"))	 		/* list */
 		{
-			i++;
+			++i;
 			if(argv[i] == NULL || *argv[i] == 0)
 			{
 				usage("`-f' needs an argument", NULL);
@@ -269,7 +291,10 @@ static int doargs(int argc, char* argv[])
 		{
 			++i;
 			guess_locals = 0;
-			if(LocalsLoad(argv[i]) == 0) usage("`-l' needs argument", NULL);
+			if(LocalsLoad(argv[i]) == 0)
+			{
+				usage("`-l' needs argument", NULL);
+			}
 		}
 		else if(IS("-l2"))	 		/* list */
 		{
@@ -291,23 +316,35 @@ static int doargs(int argc, char* argv[])
 		else if(IS("-o"))			/* output file */
 		{
 			output = argv[++i];
-			if(output == NULL || *output == 0) usage("`-o' needs argument", NULL);
+			if(output == NULL || *output == 0)
+			{
+				usage("`-o' needs argument", NULL);
+			}
 		}
 		else if(IS("-p"))			/* parse only */
+		{
 			dumping = 0;
+		}
 		else if(IS("-pg"))			/* parse only */
+		{
 			lds2 = 1;
+		}
 		else if(IS("-dg"))			/* parse only */
+		{
 			guess_locals = 0;
-		else if(IS("-s"))			/* strip debug information */
-			stripping = 1;
+		}
 		else if(IS("-v"))			/* show version */
 		{
 			printf("LuaDec "VERSION"\n");
-			if(argc == 2) exit(EXIT_SUCCESS);
+			if(argc == 2)
+			{
+				exit(EXIT_SUCCESS);
+			}
 		}
 		else					/* unknown option */
+		{
 			usage("unrecognized option `%s'", argv[i]);
+		}
 	}
 	if(i == argc && (debugging || !dumping))
 	{
@@ -332,7 +369,7 @@ static Proto* combine(lua_State* L, int n)
 		if(LDS2)
 		{
 			Inject(f, 0);
-			for(i = 0; i < f->sizep; i++)
+			for(i = 0; i < f->sizep; ++i)
 			{
 				Inject(f->p[i], i + 1);
 			}
@@ -349,7 +386,7 @@ static Proto* combine(lua_State* L, int n)
 		f->sizep = n;
 		f->sizecode = 2 * n + 1;
 		f->code = luaM_newvector(L, f->sizecode, Instruction);
-		for(i = 0; i < n; i++)
+		for(i = 0; i < n; ++i)
 		{
 			f->p[i] = toproto(L, i - n);
 			f->code[pc++] = CREATE_ABx(OP_CLOSURE, 0, i);
@@ -359,29 +396,13 @@ static Proto* combine(lua_State* L, int n)
 		if(LDS2)
 		{
 			Inject(f, 0);
-			for(i = 0; i < n; i++)
+			for(i = 0; i < n; ++i)
 			{
 				Inject(f->p[i], i + 1);
 			}
 		}
 		return f;
 	}
-}
-
-static void strip(lua_State* L, Proto* f)
-{
-	int i, n = f->sizep;
-	luaM_freearray(L, f->lineinfo, f->sizelineinfo, int);
-	luaM_freearray(L, f->locvars, f->sizelocvars, struct LocVar);
-	luaM_freearray(L, f->upvalues, f->sizeupvalues, TString *);
-	f->lineinfo = NULL;
-	f->sizelineinfo = 0;
-	f->locvars = NULL;
-	f->sizelocvars = 0;
-	f->upvalues = NULL;
-	f->sizeupvalues = 0;
-	f->source = luaS_newliteral(L, "=(none)");
-	for(i = 0; i < n; i++) strip(L, f->p[i]);
 }
 
 int luaU_guess_locals(Proto * f, int main);
@@ -400,30 +421,41 @@ int main(int argc, char* argv[])
 	i = doargs(argc, argv);
 	argc -= i;
 	argv += i;
-	if(argc <= 0) usage("no input files given", NULL);
+	if(argc <= 0)
+	{
+		usage("no input files given", NULL);
+	}
 	L = lua_open();
 	glstate = L;
 	luaB_opentests(L);
-	for(i = 0; i < argc; i++)
+	for(i = 0; i < argc; ++i)
 	{
 		const char* filename = IS("-") ? NULL : argv[i];
-		if(luaL_loadfile(L, filename) != 0) fatal(lua_tostring(L, -1));
+		if(luaL_loadfile(L, filename) != 0)
+		{
+			fatal(lua_tostring(L, -1));
+		}
 	}
 	if(disassemble)
 	{
-		printf("; This file has been disassembled using luadec " VERSION " by sztupy (http://winmo.sztupy.hu)\n");
-		printf("; Command line was: ");
+		printf("; Disassembled using luadec " VERSION " by sztupy (http://winmo.sztupy.hu/)\n;");
 	}
 	else
 	{
-		printf("-- Decompiled using luadec " VERSION " by sztupy (http://winmo.sztupy.hu)\n");
-		printf("-- Command line was: ");
+		printf("-- Decompiled using luadec " VERSION " by sztupy (http://winmo.sztupy.hu/)\n--");
 	}
-	for(i = 1; i < oargc; i++)
+	printf(" Command line: ");
+	for(i = 1; i < oargc; ++i)
 	{
-		printf("%s ", oargv[i]);
+		if(i != oargc - 1)
+		{
+			printf("%s ", oargv[i]);
+		}
+		else
+		{
+			printf("%s\n\n", oargv[i]);
+		}
 	}
-	printf("\n\n");
 	f = combine(L, argc);
 	if(guess_locals)
 	{
@@ -432,16 +464,19 @@ int main(int argc, char* argv[])
 	if(lds2)
 	{
 		int i, i2;
-		for(i = -1; i < f->sizep; i++)
+		for(i = -1; i < f->sizep; ++i)
 		{
 			Proto * x = f;
 			if(i != -1)
 			{
 				x = f->p[i];
 			}
-			for(i2 = 0; i2 < x->sizelocvars; i2++)
+			for(i2 = 0; i2 < x->sizelocvars; ++i2)
 			{
-				if(i2 != 0) printf(",");
+				if(i2 != 0)
+				{
+					printf(",");
+				}
 				printf("%d-%d", x->locvars[i2].startpc, x->locvars[i2].endpc);
 			}
 			printf(";");
@@ -464,7 +499,7 @@ int main(int argc, char* argv[])
 	{
 		if(disassemble)
 		{
-			sprintf(tmp, "");
+			tmp[0] = '\0';
 			luaU_disassemble(f, debugging, 0, tmp);
 		}
 		else

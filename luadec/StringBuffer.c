@@ -11,21 +11,9 @@
 
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-/*{
-
-#define STRINGBUFFER_BLOCK 256
-
-typedef struct StringBuffer_ {
-   char* buffer;
-   int bufferSize;
-   int usedSize;
-} StringBuffer;
-
-}*/
-
 StringBuffer* StringBuffer_new(char* data)
 {
-	StringBuffer* this = (StringBuffer*) malloc(sizeof(StringBuffer));
+	StringBuffer* this = (StringBuffer*)malloc(sizeof(StringBuffer));
 	if(data != NULL)
 	{
 		int len = strlen(data);
@@ -55,7 +43,9 @@ void StringBuffer_makeRoom(StringBuffer* this, int neededSize)
 	{
 		int newSize = this->bufferSize * 2;
 		if(newSize < neededSize)
+		{
 			newSize += neededSize;
+		}
 		this->buffer = realloc(this->buffer, newSize + 1);
 		this->bufferSize = newSize;
 	}

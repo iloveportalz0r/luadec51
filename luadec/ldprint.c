@@ -78,7 +78,6 @@ char* getupval(Function * F, int r)
 #define fb2int(x)	(((x) & 7) << ((x) >> 3))
 
 #define SET_ERROR(F,e) { StringBuffer_printf(errorStr," -- DECOMPILER ERROR: %s\n", (e)); RawAddStatement((F),errorStr); }
-/*  error = e; errorCode = __LINE__; */ /*if (debug) { printf("DECOMPILER ERROR: %s\n", e);  }*/
 
 static int debug;
 
@@ -594,8 +593,12 @@ void RawAddStatement(Function * F, StringBuffer * str)
 		};
 		F->released_local = 0;
 		for(i = 0; scopeclose[i]; ++i)
+		{
 			if(strstr(copy, scopeclose[i]) == copy)
+			{
 				break;
+			}
+		}
 		if(!scopeclose[i])
 		{
 			int added = 0;
@@ -680,7 +683,10 @@ void FlushBoolean(Function * F)
 void AddStatement(Function * F, StringBuffer * str)
 {
 	FlushBoolean(F);
-	if(error) return;
+	if(error)
+	{
+		return;
+	}
 	RawAddStatement(F, str);
 }
 
@@ -763,7 +769,9 @@ void Assign(Function * F, char* dest, char* src, int reg, int prio, int mayTest)
 	{
 		if(guess_locals)
 		{
-			SET_ERROR(F, "Overwrote pending register.");
+			char tmp[32];
+			sprintf(tmp, "Overwrote pending register: %i", reg);
+			SET_ERROR(F, tmp);
 		}
 		else
 		{
@@ -773,8 +781,6 @@ void Assign(Function * F, char* dest, char* src, int reg, int prio, int mayTest)
 			DeclareLocal(F, reg, s);
 		}
 		return;
-		//SET_ERROR("overwrote pending register!");
-		//return;
 	}
 
 	if(reg != -1)
@@ -1143,7 +1149,9 @@ void OutputAssignments(Function * F)
 	StringBuffer *vars;
 	StringBuffer *exps;
 	if(!SET_IS_EMPTY(F->tpend))
+	{
 		return;
+	}
 	vars = StringBuffer_new(NULL);
 	exps = StringBuffer_new(NULL);
 	size = SET_CTR(F->vpend);
@@ -1320,14 +1328,17 @@ void DeclareLocals(Function * F)
 				}
 				StringBuffer_add(str, LOCAL(i));
 				StringBuffer_add(rhs, GetR(F, r));
-				if(error) return;
+				if(error)
+				{
+					return;
+				}
 			}
 			else
 			{
 				if(!(locals > 0))
 				{
 					SET_ERROR(F, "Confused at declaration of local variable");
-					return;
+					StringBuffer_prepend(str, "-- "); // comment out broken line
 				}
 				StringBuffer_add(str, ", ");
 				StringBuffer_add(str, LOCAL(i));
@@ -1386,7 +1397,7 @@ char *RegisterOrConstant(Function * F, int r)
 {
 	if(IS_CONSTANT(r))
 	{
-		return DecompileConstant(F->f, r - 256); // TODO: Lua5.1 specific. Should change to MSR!!!
+		return DecompileConstant(F->f, r - 256); // TODO: Lua5.1 specific. Should change to MSR!
 	}
 	else
 	{
@@ -1394,6 +1405,10 @@ char *RegisterOrConstant(Function * F, int r)
 		if(error)
 		{
 			return NULL;
+		}
+		if(reg == NULL)
+		{
+			reg = "DECOMPILE_ERROR"; // TODO: Fix this
 		}
 		char *copy = malloc(strlen(reg) + 1);
 		strcpy(copy, reg);
@@ -1429,9 +1444,13 @@ void MakeIndex(Function * F, StringBuffer * str, char* rstr, int self)
 		++rstr;
 		rstr[strlen(rstr) - 1] = '\0';
 		if(self)
+		{
 			StringBuffer_addPrintf(str, ":%s", rstr);
+		}
 		else
+		{
 			StringBuffer_addPrintf(str, ".%s", rstr);
+		}
 		--rstr;
 	}
 	else
@@ -1451,7 +1470,9 @@ void FunctionHeader(Function * F)
 		int i;
 		StringBuffer_addPrintf(str, "(");
 		for(i = 0; i < f->numparams - 1; ++i)
+		{
 			StringBuffer_addPrintf(str, "l_%d_%d, ", functionnum, i);
+		}
 		StringBuffer_addPrintf(str, "l_%d_%d", functionnum, i);
 		if(f->is_vararg)
 		{
@@ -1468,9 +1489,13 @@ void FunctionHeader(Function * F)
 	else if(!IsMain(f))
 	{
 		if(f->is_vararg)
+		{
 			StringBuffer_add(str, "(...)");
+		}
 		else
+		{
 			StringBuffer_add(str, "()");
+		}
 		AddStatement(F, str);
 		if(error)
 			return;
@@ -1490,35 +1515,71 @@ void ShowState(Function * F)
 	fprintf(stddebug, "\n");
 	fprintf(stddebug, "next bool: %d\n", F->nextBool);
 	fprintf(stddebug, "locals(%d): ", F->freeLocal);
-	for(i = 0; i < F->freeLocal; ++i)
+	for(i = 0; i <= F->freeLocal; ++i)
 	{
-		fprintf(stddebug, "%d{%s} ", i, REGISTER(i));
-	}
-	fprintf(stddebug, "\n");
-	fprintf(stddebug, "vpend(%d): ", SET_CTR(F->vpend));
-	for(i = 0; i < SET_CTR(F->vpend); ++i)
-	{
-		int r = F->vpend->regs[i];
-		if(r != -1 && !PENDING(r))
+		if(i != F->freeLocal)
 		{
-			SET_ERROR(F, "Confused about usage of registers for variables");
-			return;
+			fprintf(stddebug, "%d{%s} ", i, REGISTER(i));
 		}
-		fprintf(stddebug, "%d{%s=%s} ", r, F->vpend->dests[i], F->vpend->srcs[i]);
-	}
-	fprintf(stddebug, "\n");
-	fprintf(stddebug, "tpend(%d): ", SET_CTR(F->tpend));
-	for(i = 0; i < SET_CTR(F->tpend); ++i)
-	{
-		int r = SET(F->tpend, i);
-		fprintf(stddebug, "%d{%s} ", r, REGISTER(r));
-		if(!PENDING(r))
+		else
 		{
-			SET_ERROR(F, "Confused about usage of registers for temporaries");
-			return;
+			fprintf(stddebug, "%d{%s}\n", i, REGISTER(i));
 		}
 	}
-	fprintf(stddebug, "\n");
+
+	fprintf(stddebug, "vpend(%d):", SET_CTR(F->vpend));
+	if(SET_CTR(F->vpend) == 0)
+	{
+		fprintf(stddebug, "\n");
+	}
+	else
+	{
+		fprintf(stddebug, " ");
+		for(i = 0; i < SET_CTR(F->vpend); ++i)
+		{
+			int r = F->vpend->regs[i];
+			if(r != -1 && !PENDING(r))
+			{
+				SET_ERROR(F, "Confused about usage of registers for variables");
+				return;
+			}
+			if(i != SET_CTR(F->vpend) - 1)
+			{
+				fprintf(stddebug, "%d{%s=%s} ", r, F->vpend->dests[i], F->vpend->srcs[i]);
+			}
+			else
+			{
+				fprintf(stddebug, "%d{%s=%s}\n", r, F->vpend->dests[i], F->vpend->srcs[i]);
+			}
+		}
+	}
+
+	fprintf(stddebug, "tpend(%d):", SET_CTR(F->tpend));
+	if(SET_CTR(F->tpend) == 0)
+	{
+		fprintf(stddebug, "\n");
+	}
+	else
+	{
+		fprintf(stddebug, " ");
+		for(i = 0; i < SET_CTR(F->tpend); ++i)
+		{
+			int r = SET(F->tpend, i);
+			if(i != SET_CTR(F->tpend) - 1)
+			{
+				fprintf(stddebug, "%d{%s} ", r, REGISTER(r));
+			}
+			else
+			{
+				fprintf(stddebug, "%d{%s}\n", r, REGISTER(r));
+			}
+			if(!PENDING(r))
+			{
+				SET_ERROR(F, "Confused about usage of registers for temporaries");
+				return;
+			}
+		}
+	}
 }
 
 #define TRY(x)  x; if(error) goto errorHandler
@@ -1800,8 +1861,8 @@ char* ProcessCode(const Proto * f, int indent)
 			 */
 			char *ctt = DecompileConstant(f, bc);
 			TRY(Assign(F, REGISTER(a), ctt, a, 0, 1));
-			break;
 			free(ctt);
+			break;
 		}
 		case OP_LOADBOOL:
 		{
@@ -2399,11 +2460,17 @@ char* ProcessCode(const Proto * f, int indent)
 				char *ireg;
 				TRY(ireg = GetR(F, i));
 				if(self && i == a + 1)
+				{
 					continue;
+				}
 				if(i > a + 1 + self)
+				{
 					StringBuffer_add(str, ", ");
+				}
 				if(ireg)
+				{
 					StringBuffer_add(str, ireg);
+				}
 			}
 			StringBuffer_addChar(str, ')');
 
@@ -2662,9 +2729,11 @@ char* ProcessCode(const Proto * f, int indent)
 			break;
 		}
 		default:
+		{
 			StringBuffer_printf(str, "-- unhandled opcode? : %-9s\t\n", luaP_opnames[o]);
 			TRY(AddStatement(F, str));
 			break;
+		}
 		}
 
 		if(debug)
@@ -2794,7 +2863,7 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 {
 	char tmp[MAXCONSTSIZE+128];
 	char tmp2[MAXCONSTSIZE+128];
-	Proto* f = fwork;
+	Proto* f = (Proto*)fwork; // cast avoids warning about initialization discarding 'const'
 	int pc, l;
 	if(functions != 0)
 	{
@@ -2823,14 +2892,21 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 		switch(o)
 		{
 		case OP_MOVE:
+		{
 			sprintf(line, "%c%d %c%d", CC(a), CV(a), CC(b), CV(b));
 			sprintf(lend, "%c%d := %c%d", CC(a), CV(a), CC(b), CV(b));
 			break;
+		}
 		case OP_LOADK:
+		{
 			sprintf(line, "%c%d K%d", CC(a), CV(a), bc);
-			sprintf(lend, "%c%d := %s", CC(a), CV(a), DecompileConstant(f, bc));
+			char *constant = DecompileConstant(f, bc);
+			sprintf(lend, "%c%d := %s", CC(a), CV(a), constant);
+			free(constant);
 			break;
+		}
 		case OP_LOADBOOL:
+		{
 			sprintf(line, "%c%d %d %d", CC(a), CV(a), b, c);
 			if(b)
 			{
@@ -2855,7 +2931,9 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 				}
 			}
 			break;
+		}
 		case OP_LOADNIL:
+		{
 			sprintf(line, "%c%d %c%d", CC(a), CV(a), CC(b), CV(b));
 			lend[0] = '\0';
 			for(l = a; l <= b; ++l)
@@ -2865,6 +2943,7 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			}
 			strcat(lend, "nil");
 			break;
+		}
 		case OP_VARARG:
 			if(b == 0)
 			{
@@ -2907,7 +2986,9 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			sprintf(line, "%c%d %c%d %c%d", CC(a), CV(a), CC(b), CV(b), CC(c), CV(c));
 			if(IS_CONSTANT(c))
 			{
-				sprintf(lend, "R%d := R%d[%s]", a, b, DecompileConstant(f, c - 256));
+				char *constant = DecompileConstant(f, c - 256);
+				sprintf(lend, "R%d := R%d[%s]", a, b, constant);
+				free(constant);
 			}
 			else
 			{
@@ -2928,23 +3009,30 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			break;
 		}
 		case OP_SETTABLE:
+		{
 			sprintf(line, "%c%d %c%d %c%d", CC(a), CV(a), CC(b), CV(b), CC(c), CV(c));
 			if(IS_CONSTANT(b))
 			{
+				char *constantb = DecompileConstant(f, b - 256);
 				if(IS_CONSTANT(c))
 				{
-					sprintf(lend, "R%d[%s] := %s", a, DecompileConstant(f, b - 256), DecompileConstant(f, c - 256));
+					char *constantc = DecompileConstant(f, c - 256);
+					sprintf(lend, "R%d[%s] := %s", a, constantb, constantc);
+					free(constantc);
 				}
 				else
 				{
-					sprintf(lend, "R%d[%s] := R%d", a, DecompileConstant(f, b - 256), c);
+					sprintf(lend, "R%d[%s] := R%d", a, constantb, c);
 				}
+				free(constantb);
 			}
 			else
 			{
 				if(IS_CONSTANT(c))
 				{
-					sprintf(lend, "R%d[R%d] := %s", a, b, DecompileConstant(f, c - 256));
+					char *constantc = DecompileConstant(f, c - 256);
+					sprintf(lend, "R%d[R%d] := %s", a, b, constantc);
+					free(constantc);
 				}
 				else
 				{
@@ -2952,21 +3040,26 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 				}
 			}
 			break;
+		}
 		case OP_NEWTABLE:
 			sprintf(line, "%c%d %d %d", CC(a), CV(a), b, c);
 			sprintf(lend, "%c%d := {}", CC(a), CV(a));
 			break;
 		case OP_SELF:
+		{
 			sprintf(line, "R%d R%d %c%d", a, b, CC(c), CV(c));
 			if(IS_CONSTANT(c))
 			{
-				sprintf(lend, "R%d := R%d; R%d := R%d[%s]", a + 1, b, a, b, DecompileConstant(f, c - 256));
+				char *constant = DecompileConstant(f, c - 256);
+				sprintf(lend, "R%d := R%d; R%d := R%d[%s]", a + 1, b, a, b, constant);
+				free(constant);
 			}
 			else
 			{
 				sprintf(lend, "R%d := R%d; R%d := R%d[R%d]", a + 1, b, a, b, c);
 			}
 			break;
+		}
 		case OP_ADD:
 		case OP_SUB:
 		case OP_MUL:
@@ -2976,20 +3069,26 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			sprintf(line, "%c%d %c%d %c%d", CC(a), CV(a), CC(b), CV(b), CC(c), CV(c));
 			if(IS_CONSTANT(b))
 			{
+				char *constantb = DecompileConstant(f, b - 256);
 				if(IS_CONSTANT(c))
 				{
-					sprintf(lend, "R%d := %s %s %s", a, DecompileConstant(f, b - 256), operators[o], DecompileConstant(f, c - 256));
+					char *constantc = DecompileConstant(f, c - 256);
+					sprintf(lend, "R%d := %s %s %s", a, constantb, operators[o], constantc);
+					free(constantc);
 				}
 				else
 				{
-					sprintf(lend, "R%d := %s %s R%d", a, DecompileConstant(f, b - 256), operators[o], c);
+					sprintf(lend, "R%d := %s %s R%d", a, constantb, operators[o], c);
 				}
+				free(constantb);
 			}
 			else
 			{
 				if(IS_CONSTANT(c))
 				{
-					sprintf(lend, "R%d := R%d %s %s", a, b, operators[o], DecompileConstant(f, c - 256));
+					char *constantc = DecompileConstant(f, c - 256);
+					sprintf(lend, "R%d := R%d %s %s", a, b, operators[o], constantc);
+					free(constantc);
 				}
 				else
 				{
@@ -3000,16 +3099,20 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 		case OP_UNM:
 		case OP_NOT:
 		case OP_LEN:
+		{
 			sprintf(line, "%c%d %c%d", CC(a), CV(a), CC(b), CV(b));
 			if(IS_CONSTANT(b))
 			{
-				sprintf(lend, "R%d := %s %s", a, operators[o], DecompileConstant(f, b - 256));
+				char *constant = DecompileConstant(f, b - 256);
+				sprintf(lend, "R%d := %s %s", a, operators[o], constant);
+				free(constant);
 			}
 			else
 			{
 				sprintf(lend, "R%d := %s R%d", a, operators[o], b);
 			}
 			break;
+		}
 		case OP_CONCAT:
 			sprintf(line, "%c%d %c%d %c%d", CC(a), CV(a), CC(b), CV(b), CC(c), CV(c));
 			sprintf(lend, "R%d := ", a);
@@ -3038,11 +3141,15 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			sprintf(tmp2, "R%d", c);
 			if(IS_CONSTANT(b))
 			{
-				sprintf(tmp, "%s", DecompileConstant(f, b - 256));
+				char *constant = DecompileConstant(f, b - 256);
+				sprintf(tmp, "%s", constant);
+				free(constant);
 			}
 			if(IS_CONSTANT(c))
 			{
-				sprintf(tmp2, "%s", DecompileConstant(f, c - 256));
+				char *constant = DecompileConstant(f, c - 256);
+				sprintf(tmp2, "%s", constant);
+				free(constant);
 			}
 			if(a)
 			{
@@ -3052,8 +3159,8 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			{
 				sprintf(lend, "if %s %s %s then PC := %d", tmp, invopstr(o), tmp2, dest);
 			}
+			break;
 		}
-		break;
 		case OP_TEST:
 		{
 			int dest = GETARG_sBx(f->code[pc+1]) + pc + 1 + 2;
@@ -3061,7 +3168,9 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			sprintf(tmp, "R%d", a);
 			if(IS_CONSTANT(a))
 			{
-				sprintf(tmp, "%s", DecompileConstant(f, a - 256));
+				char *constant = DecompileConstant(f, a - 256);
+				sprintf(tmp, "%s", constant);
+				free(constant);
 			}
 			if(c)
 			{
@@ -3071,8 +3180,8 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			{
 				sprintf(lend, "if not %s then PC := %d", tmp, dest);
 			}
+			break;
 		}
-		break;
 		case OP_TESTSET:
 		{
 			int dest = GETARG_sBx(f->code[pc+1]) + pc + 1 + 2;
@@ -3081,11 +3190,15 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			sprintf(tmp2, "R%d", b);
 			if(IS_CONSTANT(a))
 			{
-				sprintf(tmp, "%s", DecompileConstant(f, a - 256));
+				char *constant = DecompileConstant(f, a - 256);
+				sprintf(tmp, "%s", constant);
+				free(constant);
 			}
 			if(IS_CONSTANT(b))
 			{
-				sprintf(tmp2, "%s", DecompileConstant(f, b - 256));
+				char *constant = DecompileConstant(f, b - 256);
+				sprintf(tmp2, "%s", constant);
+				free(constant);
 			}
 			if(c)
 			{
@@ -3095,8 +3208,8 @@ void luaU_disassemble(const Proto* fwork, int dflag, int functions, char* name)
 			{
 				sprintf(lend, "if not %s then PC := %d else %s := %s", tmp2, dest, tmp, tmp2);
 			}
+			break;
 		}
-		break;
 		case OP_CALL:
 		case OP_TAILCALL:
 		{
